@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mining Certificate Authority</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">&#9635; Mining Certificate Authority</div>
+</header>
+<main class="container">
+  <section class="card">
+    <h1>MCA - port {{ port }}</h1>
+    <p class="muted">This service must stay running for miners on the network to obtain and redeem certificates. It has no login - it's an internal service other nodes talk to.</p>
+  </section>
+  <section class="card">
+    <h2>Recent certificates ({{ certs|length }})</h2>
+    {% if not certs %}
+      <p class="muted">No certificates issued yet.</p>
+    {% else %}
+    <table class="table">
+      <thead><tr><th>Cert ID</th><th>Miner</th><th>Block #</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for c in certs %}
+        <tr>
+          <td><code>{{ c.cert_id[:16] }}...</code></td>
+          <td><code>{{ c.miner_address[:14] }}...</code></td>
+          <td>{{ c.block_index }}</td>
+          <td>
+            {% if c.used %}<span class="badge badge-ok">used</span>
+            {% elif c.expires_at < now %}<span class="badge badge-pending">expired</span>
+            {% else %}<span class="badge badge-pending">active</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+</main>
+</body>
+</html>

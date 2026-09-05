@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Miner{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <section class="card">
+    <h2>Mining Certificate</h2>
+    <p class="muted">Every block requires a fresh, single-use certificate from the Mining Certificate Authority (MCA) at <code>{{ mca_url }}</code>. Request one, then mine before it goes stale or expires.</p>
+
+    <div id="cert-box" class="cert-box {{ 'has-cert' if cert }}">
+      {% if cert %}
+        <div><span class="muted">Certificate ID</span><code>{{ cert.cert_id[:24] }}...</code></div>
+        <div><span class="muted">For block</span><code>#{{ cert.block_index }}</code></div>
+        <div><span class="muted">Status</span><span class="badge badge-ok">active</span></div>
+      {% else %}
+        <p class="muted">No active certificate.</p>
+      {% endif %}
+    </div>
+
+    <button id="btn-cert" class="btn btn-primary">Request Mining Certificate</button>
+  </section>
+
+  <section class="card">
+    <h2>Network status</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-label">Chain tip</div><div class="stat-value">#{{ tip.index }}</div></div>
+      <div class="stat"><div class="stat-label">Difficulty</div><div class="stat-value">{{ difficulty }}</div></div>
+      <div class="stat"><div class="stat-label">Reward / block</div><div class="stat-value">{{ reward }}</div></div>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost" style="margin-top:16px;display:inline-block;">&larr; Back to Wallet</a>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Mine</h2>
+  <p class="muted">Proof-of-work is intentionally light (difficulty {{ difficulty }}) so this should take a fraction of a second up to a few seconds on a normal desktop.</p>
+  <button id="btn-mine" class="btn btn-success" disabled>Mine Block</button>
+  <div id="mine-status" class="mine-status"></div>
+  <pre id="mine-result" class="mine-result" style="display:none;"></pre>
+</section>
+
+<script src="{{ url_for('static', filename='miner.js') }}"></script>
+{% endblock %}
