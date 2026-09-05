@@ -36,7 +36,7 @@ same LAN.
 There are two kinds of service in this project:
 
 ```
-                     ┌─────────────────────────┐
+                     ┌──────────────────────────┐
                      │  Mining Certificate      │
                      │  Authority (MCA)         │   <- one per network,
                      │  mca_server.py           │      must stay running
@@ -44,7 +44,7 @@ There are two kinds of service in this project:
                                  │  issue / verify certificates
                  ┌───────────────┼────────────────┐
                  │               │                │
-        ┌────────▼───────┐ ┌─────▼──────────┐ ┌───▼────────────┐
+        ┌────────▼───────┐  ┌────▼────────────┐ ┌─▼───────────────┐
         │ Node (machine A)│ │ Node (machine B)│ │ Node (machine C)│
         │ node_server.py  │ │ node_server.py  │ │ node_server.py  │
         │ Wallet + Miner  │◄┼─Peers, sync────►│ │ Wallet + Miner  │
