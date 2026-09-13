@@ -6,7 +6,7 @@ Run:
     python node_server.py
 Env vars:
     PORT        port this node listens on (default 5000)
-    MCA_URL     base URL of the Mining Certificate Authority (default http://localhost:6000)
+    MCA_URL     base URL of the Mining Certificate Authority (default http://localhost:6060)
     SECRET_KEY  Flask session secret (set a real one if exposing beyond your LAN)
 
 Open http://localhost:<PORT> in a browser to sign up / log in.
@@ -22,7 +22,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 import config
 import crypto_utils
 from blockchain import Block, make_genesis_block, mine_block, meets_difficulty
-from mca_store import verify_signature as mca_verify_signature, CERT_FIELDS
+from cert_utils import verify_signature as mca_verify_signature, CERT_FIELDS
 from node_store import NodeStore
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -91,15 +91,42 @@ def broadcast(path: str, payload: dict, exclude: str = None):
             pass  # peer offline - fine for a demo LAN network
 
 
+def get_mca_pubkey(force_refresh: bool = False):
+    """Returns the MCA's public key, fetching it once and caching it
+    locally (trust-on-first-use). Unlike the old shared-secret design,
+    this value is not sensitive - it's only ever used to verify
+    signatures, never to forge them - so caching it in plain JSON is fine.
+    Returns None if it has never been fetched and the MCA is unreachable.
+    """
+    if not force_refresh:
+        cached = store.get_cached_mca_pubkey()
+        if cached:
+            return cached
+    try:
+        r = requests.get(f"{MCA_URL}/public_key", timeout=5)
+        if r.status_code == 200:
+            pubkey = r.json().get("public_key")
+            if pubkey:
+                store.set_cached_mca_pubkey(pubkey)
+                return pubkey
+    except requests.RequestException:
+        pass
+    return store.get_cached_mca_pubkey()  # fall back to whatever we had, if anything
+
+
 def validate_full_chain(chain: list) -> bool:
     """Local, self-contained validation of an entire chain: hash linkage,
-    proof-of-work, and certificate authenticity (via the shared HMAC
-    secret) for every block. Used when adopting a longer chain from a peer."""
+    proof-of-work, and certificate authenticity (via the MCA's public
+    key) for every block. Used when adopting a longer chain from a peer."""
     if not chain:
         return False
     genesis = chain[0]
     if genesis["index"] != 0 or genesis["previous_hash"] != "0" * 64:
         return False
+
+    mca_pubkey = get_mca_pubkey()
+    if not mca_pubkey and len(chain) > 1:
+        return False  # can't verify certificates without the MCA's public key
 
     for i in range(1, len(chain)):
         prev = chain[i - 1]
@@ -119,7 +146,7 @@ def validate_full_chain(chain: list) -> bool:
         if not cert:
             return False
         payload = {k: cert[k] for k in CERT_FIELDS}
-        if not mca_verify_signature(payload, cert.get("signature", "")):
+        if not mca_verify_signature(payload, cert.get("signature", ""), mca_pubkey):
             return False
         if cert["block_index"] != block["index"] or cert["prev_hash"] != block["previous_hash"]:
             return False
@@ -302,6 +329,14 @@ def chain_view():
 @login_required
 def peers_view():
     if request.method == "POST":
+        if request.form.get("refresh_mca_key"):
+            pubkey = get_mca_pubkey(force_refresh=True)
+            if pubkey:
+                flash("Refreshed the MCA's public key from the live service.", "success")
+            else:
+                flash("Could not reach the MCA to refresh its public key.", "error")
+            return redirect(url_for("peers_view"))
+
         url = request.form.get("peer_url", "").strip().rstrip("/")
         if url:
             store.add_peer(url)
@@ -323,7 +358,10 @@ def peers_view():
                 flash(f"Added {url}, but could not fully sync with it right now.", "error")
             else:
                 flash(f"Connected and synced with peer {url}.", "success")
-    return render_template("peers.html", peers=store.get_peers(), self_url=SELF_URL, mca_url=MCA_URL)
+    return render_template(
+        "peers.html", peers=store.get_peers(), self_url=SELF_URL, mca_url=MCA_URL,
+        mca_pubkey=store.get_cached_mca_pubkey(),
+    )
 
 
 # =============================================================== MINER UI
@@ -337,9 +375,19 @@ def miner():
     if cert_stale:
         session.pop("active_cert", None)
         cert = None
+
+    acc = current_account()
+    is_validator = None  # None means "couldn't reach the MCA to check"
+    try:
+        r = requests.get(f"{MCA_URL}/validators", timeout=3)
+        if r.status_code == 200:
+            is_validator = acc["address"] in r.json().get("validators", {})
+    except requests.RequestException:
+        pass
+
     return render_template(
         "miner.html",
-        account=current_account(), tip=tip, cert=cert,
+        account=acc, tip=tip, cert=cert, is_validator=is_validator,
         difficulty=config.DIFFICULTY, reward=config.MINING_REWARD, mca_url=MCA_URL,
     )
 
@@ -494,7 +542,8 @@ def p2p_blocks():
 
         cert = block.get("certificate") or {}
         payload = {k: cert.get(k) for k in CERT_FIELDS}
-        if not mca_verify_signature(payload, cert.get("signature", "")):
+        mca_pubkey = get_mca_pubkey()
+        if not mca_verify_signature(payload, cert.get("signature", ""), mca_pubkey):
             return jsonify({"ok": False, "reason": "invalid certificate signature"}), 400
         if cert.get("block_index") != block["index"] or cert.get("prev_hash") != block["previous_hash"]:
             return jsonify({"ok": False, "reason": "certificate does not match block position"}), 400

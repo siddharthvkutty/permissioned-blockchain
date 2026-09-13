@@ -28,6 +28,7 @@ class NodeStore:
             "mempool": [],      # list of pending transaction dicts
             "peers": [],        # list of peer base URLs, e.g. http://192.168.1.5:5000
             "balances": {},     # address -> float (cache, rebuilt from chain)
+            "mca_pubkey": None,  # cached public key of the MCA this node talks to
         }
         self._load()
 
@@ -176,3 +177,12 @@ class NodeStore:
 
     def get_peers(self):
         return list(self.data["peers"])
+
+    # ---------------------------------------------------------------- MCA identity
+    def get_cached_mca_pubkey(self):
+        return self.data.get("mca_pubkey")
+
+    def set_cached_mca_pubkey(self, pubkey: str):
+        with self.lock:
+            self.data["mca_pubkey"] = pubkey
+            self._save()

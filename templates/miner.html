@@ -4,7 +4,18 @@
 <div class="grid-2">
   <section class="card">
     <h2>Mining Certificate</h2>
-    <p class="muted">Every block requires a fresh, single-use certificate from the Mining Certificate Authority (MCA) at <code>{{ mca_url }}</code>. Request one, then mine before it goes stale or expires.</p>
+    <p class="muted">Every block requires a fresh, single-use certificate from the Mining Certificate Authority (MCA) at <code>{{ mca_url }}</code>. Only addresses the MCA has approved as validators can request one - request it, then mine before it goes stale or expires.</p>
+
+    <div class="cert-box {{ 'has-cert' if is_validator }}" style="margin-bottom:16px;">
+      {% if is_validator is none %}
+        <span class="badge badge-pending">Could not reach the MCA to check validator status</span>
+      {% elif is_validator %}
+        <span class="badge badge-ok">Authorized validator</span>
+      {% else %}
+        <span class="badge badge-pending">Not an authorized validator</span>
+        <p class="muted" style="margin:8px 0 0;">Your address (<code>{{ account.address[:20] }}...</code>) hasn't been approved to mine yet. Ask your network administrator to add it on the MCA's Validators page.</p>
+      {% endif %}
+    </div>
 
     <div id="cert-box" class="cert-box {{ 'has-cert' if cert }}">
       {% if cert %}

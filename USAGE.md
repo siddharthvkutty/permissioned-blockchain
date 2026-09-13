@@ -48,10 +48,10 @@ run_mca.bat
 
 You should see:
 ```
-[MCA] Mining Certificate Authority listening on 0.0.0.0:6000
+[MCA] Mining Certificate Authority listening on 0.0.0.0:6060
 ```
 Leave this running. You can check it's alive by visiting
-`http://localhost:6000` in a browser — it shows a simple live list of
+`http://localhost:6060` in a browser — it shows a simple live list of
 issued certificates.
 
 **Terminal 2 — start a node:**
@@ -66,7 +66,7 @@ run_node.bat
 You should see:
 ```
 [Node] Listening on 0.0.0.0:5000  (open http://localhost:5000 in a browser)
-[Node] Using MCA at http://localhost:6000
+[Node] Using MCA at http://localhost:6060
 ```
 
 Now open **http://localhost:5000** in your browser.
@@ -88,7 +88,41 @@ Now open **http://localhost:5000** in your browser.
    balance and the confirmed transaction. Check the **Chain** page to see
    the full block-by-block ledger.
 
-## 4. Running it across multiple machines on the same network
+### 3.5 Approving validators (required before anyone can mine)
+
+Signing up gives you a wallet, but **nobody can mine until the network
+admin explicitly approves their address**. This is deliberate — see the
+README's "How mining is 'permissioned'" section for why.
+
+1. On the machine you signed up on, go to the **Wallet** dashboard — your
+   address is shown right under your balance. Copy it.
+2. Go to the MCA's admin page: `http://localhost:6060/admin/validators`
+   (or `http://<mca-ip>:6060/admin/validators` from another machine).
+3. Enter the **admin key** (`MCA_ADMIN_KEY` — see section 5 for how to
+   set this), paste the address, optionally add a label, and click
+   **Approve as validator**.
+4. Back on that user's **Miner** page, they'll now see an "Authorized
+   validator" badge and can request certificates and mine normally.
+
+To revoke someone's ability to mine later, go back to the same page,
+paste their address, and click **Revoke** — this takes effect
+immediately, even mid-mining (their next certificate redemption will be
+rejected).
+
+**Set the admin key before anyone relies on this**, since it defaults to
+a placeholder value:
+
+```bash
+# Linux/macOS
+export MCA_ADMIN_KEY="something-only-the-admin-knows"
+./run_mca.sh
+
+# Windows
+set MCA_ADMIN_KEY=something-only-the-admin-knows
+run_mca.bat
+```
+
+
 
 This is the setup the project is actually designed for: one MCA, and one
 node per participating machine, all on the same LAN.
@@ -111,16 +145,17 @@ Say it's `192.168.1.10`. Start the MCA there:
 run_mca.bat             # Windows
 ```
 
-It listens on port `6000` on all network interfaces, so it's reachable at
-`http://192.168.1.10:6000` from any other machine on the LAN.
+It listens on port `6060` on all network interfaces, so it's reachable at
+`http://192.168.1.10:6060` from any other machine on the LAN.
 
-**Important:** every machine must use the *same* `MCA_SECRET_KEY`. Either:
-
-- edit `config.py` on every machine to use the same custom secret before
-  distributing the project, **or**
-- set the environment variable before launching the MCA and every node,
-  e.g. (Linux/macOS) `export MCA_SECRET_KEY="my-network-secret"` or
-  (Windows) `set MCA_SECRET_KEY=my-network-secret`.
+**Nothing to synchronize this time** — certificates are signed with the
+MCA's own ECDSA keypair (generated automatically the first time it
+starts, and persisted in its data file after that). Every node
+automatically fetches the MCA's *public* key the first time it needs it
+(when syncing a chain from a peer, or receiving a block) and caches it
+locally; there is no secret you need to copy between machines. You can
+see the MCA's public key any time on its dashboard (`http://<mca-ip>:6060`)
+or a node's Peers page after it's been fetched.
 
 ### 4.2 On every participating machine, run a node
 
@@ -129,10 +164,10 @@ runs per machine) and points at the MCA's address:
 
 ```bash
 # Linux/macOS
-./run_node.sh 5000 http://192.168.1.10:6000
+./run_node.sh 5000 http://192.168.1.10:6060
 
 # Windows
-run_node.bat 5000 http://192.168.1.10:6000
+run_node.bat 5000 http://192.168.1.10:6060
 ```
 
 Then open `http://localhost:5000` in a browser on that machine and sign
@@ -180,12 +215,12 @@ files):
 | Mining reward | `MINING_REWARD` | `10` | Coins paid for every accepted block. |
 | Starting balance | `STARTING_BALANCE` | `50` | Coins granted at signup. |
 | Certificate validity | `CERT_VALIDITY_SECONDS` | `300` | How long a mining certificate stays redeemable. |
-| Shared secret | `MCA_SECRET_KEY` | *(placeholder — change this)* | Must match on the MCA and every node. |
+| Admin key | `MCA_ADMIN_KEY` | *(placeholder — change this)* | Needed only to approve/revoke validators on the MCA; not distributed to nodes. |
 
 Example — run a node with a harder difficulty just for testing:
 
 ```bash
-CHAIN_DIFFICULTY=6 ./run_node.sh 5000 http://localhost:6000
+CHAIN_DIFFICULTY=6 ./run_node.sh 5000 http://localhost:6060
 ```
 
 ## 6. Running more than one node on the same machine (for testing)
@@ -195,8 +230,8 @@ several nodes on one machine to try out multi-node behavior without a
 second computer:
 
 ```bash
-./run_node.sh 5000 http://localhost:6000
-./run_node.sh 5001 http://localhost:6000   # in another terminal
+./run_node.sh 5000 http://localhost:6060
+./run_node.sh 5001 http://localhost:6060   # in another terminal
 ```
 
 Then peer `http://localhost:5000` with `http://localhost:5001` from
@@ -207,7 +242,7 @@ either node's Peers page.
 Each node and the MCA keep all their state in the `data/` folder, one
 JSON file per port. To wipe a node or the MCA back to a blank slate, stop
 it and delete the relevant file, e.g. `data/node_5000.json` or
-`data/mca_6000.json`. If you reset one node in a network that has peers
+`data/mca_6060.json`. If you reset one node in a network that has peers
 with existing history, reconnect it on the **Peers** page afterward so it
 re-syncs the current accounts and chain instead of starting an
 incompatible fork.
@@ -217,7 +252,7 @@ incompatible fork.
 - **"Could not reach MCA"** on the Miner page — check the MCA is running
   and that the node was started with the correct `MCA_URL` / `--mca-url`
   pointing at it (including the right IP if it's on another machine), and
-  that no firewall is blocking port 6000.
+  that no firewall is blocking port 6060.
 - **A peer never shows up on the Peers list / accounts don't sync** —
   confirm the peer URL is reachable from the browser's machine (try
   opening it directly, e.g. `http://192.168.1.11:5000/status`), and that

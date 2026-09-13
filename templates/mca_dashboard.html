@@ -8,11 +8,18 @@
 <body>
 <header class="topbar">
   <div class="brand">&#9635; Mining Certificate Authority</div>
+  <nav class="navlinks">
+    <a href="/" class="active">Dashboard</a>
+    <a href="/admin/validators">Validators</a>
+  </nav>
 </header>
 <main class="container">
   <section class="card">
     <h1>MCA - port {{ port }}</h1>
     <p class="muted">This service must stay running for miners on the network to obtain and redeem certificates. It has no login - it's an internal service other nodes talk to.</p>
+    <p class="muted"><b>{{ validator_count }}</b> address(es) currently authorized to mine. Manage this on the <a href="/admin/validators">Validators</a> page.</p>
+    <p class="muted">Public key (give this to every node - it's safe to share):</p>
+    <code style="display:block; word-break:break-all;">{{ public_key }}</code>
   </section>
   <section class="card">
     <h2>Recent certificates ({{ certs|length }})</h2>

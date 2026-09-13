@@ -1,17 +1,5 @@
 # Permissioned Chain
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.9%2B-blue?style=flat&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/Flask-2.3%2B-black?style=flat&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/Jinja2-Templating-B41717?style=flat&logo=jinja&logoColor=white" alt="Jinja2">
-  <img src="https://img.shields.io/badge/Werkzeug-Security-red?style=flat" alt="Werkzeug">
-  <img src="https://img.shields.io/badge/ecdsa-secp256k1-blueviolet?style=flat" alt="ecdsa">
-  <img src="https://img.shields.io/badge/requests-HTTP%2FP2P-green?style=flat&logo=python&logoColor=white" alt="requests">
-  <img src="https://img.shields.io/badge/Storage-JSON%20files-lightgrey?style=flat" alt="Storage">
-  <img src="https://img.shields.io/badge/HTML5%20%7C%20CSS3%20%7C%20JavaScript-Frontend-e34c26?style=flat&logo=html5&logoColor=white" alt="Frontend">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat" alt="License: MIT">
-</p>
-
 A small, self-contained **permissioned blockchain network** with a real web
 GUI, built with Python and Flask. It works on Linux and Windows (anywhere
 Python 3 runs) and is designed to be run across multiple machines on the
@@ -36,7 +24,7 @@ same LAN.
 There are two kinds of service in this project:
 
 ```
-                     ┌──────────────────────────┐
+                     ┌─────────────────────────┐
                      │  Mining Certificate      │
                      │  Authority (MCA)         │   <- one per network,
                      │  mca_server.py           │      must stay running
@@ -44,7 +32,7 @@ There are two kinds of service in this project:
                                  │  issue / verify certificates
                  ┌───────────────┼────────────────┐
                  │               │                │
-        ┌────────▼───────┐  ┌────▼────────────┐ ┌─▼───────────────┐
+        ┌────────▼───────┐ ┌─────▼──────────┐ ┌───▼────────────┐
         │ Node (machine A)│ │ Node (machine B)│ │ Node (machine C)│
         │ node_server.py  │ │ node_server.py  │ │ node_server.py  │
         │ Wallet + Miner  │◄┼─Peers, sync────►│ │ Wallet + Miner  │
@@ -70,38 +58,66 @@ this, including multi-machine setup.
 
 ## How mining is "permissioned"
 
-This is the core mechanic the project is built around:
+This project actually layers **two separate permission systems**, which is
+the main thing that distinguishes it from "a blockchain with a login
+screen":
 
-1. A miner switches to the **Miner** interface and clicks **Request Mining
-   Certificate**. The node asks the MCA for a certificate, sending the
-   current chain tip (block index + hash). The MCA mints a certificate
-   that is:
-   - bound to that miner's address,
-   - bound to that *exact* next block index and *exact* previous hash,
-   - signed with an HMAC secret shared across the network,
-   - time-limited (expires after a few minutes by default),
-   - single-use.
-2. The miner clicks **Mine Block**. The node assembles pending
+- **Network membership** (handled by each node): you need an account to
+  see or transact on the chain at all. Anyone can sign up and get a
+  wallet with 50 starting coins.
+- **Validator admission** (handled centrally by the MCA): being a member
+  does **not** automatically mean you're allowed to mine. A separate,
+  admin-controlled whitelist on the MCA decides which specific wallet
+  addresses are authorized validators. Everyone else's certificate
+  requests are rejected outright, however good their proof-of-work would
+  be.
+
+This mirrors how real permissioned-blockchain platforms (e.g. Hyperledger
+Fabric's Membership Service Provider) separate "who can use the network"
+from "who can participate in producing blocks." A network administrator
+manages this at the MCA's `/admin/validators` page using a dedicated
+admin key (`MCA_ADMIN_KEY` in `config.py`) — known only to whoever
+governs network membership, never distributed to nodes.
+
+**Why this lives on the MCA and not inside node data:** account records
+(including roles, if they were stored there) are replicated between
+trusted peer nodes so people can log in from any machine. If "who's
+allowed to mine" were just a field on that same replicated account
+record, any node operator could simply edit their own local JSON file to
+grant themselves validator status — completely defeating the point.
+Keeping the validator whitelist only on the MCA, a separately-run service
+most miners don't have filesystem access to, is what makes the admission
+control actually mean something.
+
+The full mining flow, then:
+
+1. On the **Miner** page, a wallet holder sees whether the MCA currently
+   recognizes their address as an authorized validator.
+2. If authorized, they click **Request Mining Certificate**. The MCA
+   checks the whitelist *before* issuing anything; unauthorized addresses
+   are rejected with a clear reason and never receive a certificate.
+3. If issued, the certificate is bound to that miner's address, that
+   *exact* next block index and previous hash, signed with the MCA's own
+   ECDSA private key (generated once, never leaving the MCA's machine),
+   time-limited, and single-use.
+4. The miner clicks **Mine Block**. The node assembles pending
    transactions, attaches the certificate, and searches for a nonce whose
    block hash has the required number of leading zero hex digits (the
    light proof-of-work).
-3. Once found, the node redeems the certificate with the MCA
-   (`/verify_certificate`, `mark_used=true`). The MCA checks its own
-   database: does this certificate exist, is the signature genuine, has
-   it not expired, does it match this exact block position, and — has it
-   already been used? Only if all of that passes does the MCA mark it
-   used and confirm validity.
-4. Only then does the node accept the block into its chain and broadcast
-   it to its peers. Every peer that receives the block independently
-   re-checks the certificate's signature *and* re-confirms with the MCA
-   before accepting it too.
+5. Once found, the node redeems the certificate with the MCA
+   (`/verify_certificate`, `mark_used=true`). The MCA re-checks
+   everything — signature authenticity, expiry, exact block-position
+   match, single-use, **and validator status again** (in case it was
+   revoked mid-mining) — before marking it used and confirming validity.
+6. Only then does the node accept the block and broadcast it to peers.
+   Every peer independently re-verifies the certificate's signature *and*
+   re-confirms with the MCA before accepting the block too.
 
-Because a certificate is single-use and tied to one specific block
-position, a miner cannot mine two blocks with one certificate, cannot
-reuse an old certificate once the chain has moved on, and cannot forge a
-certificate without the shared HMAC secret. This is what makes "mining"
-on this network permissioned, on top of the network already being
-permissioned for viewing/transacting at the account level.
+Because a certificate is single-use, position-bound, and gated by a
+centrally-managed validator whitelist, a non-validator cannot mine at
+all, an authorized miner cannot reuse a stale certificate, and nobody can
+forge a certificate without the MCA's private key — which, unlike the
+project's earlier design, never has to be distributed anywhere.
 
 ---
 
@@ -114,6 +130,8 @@ permissioned for viewing/transacting at the account level.
       wallet dashboard.
 - [x] A Mining Certificate Authority that must be running for mining to
       work, issuing one certificate per block a miner wishes to mine.
+- [x] A centrally-administered validator whitelist on the MCA — being a
+      network member does not automatically mean you're allowed to mine.
 - [x] Certificates are checked against the MCA's own database when a
       block is published (not just checked locally).
 - [x] Multiple machines on the same network can connect, sign up/log in,
@@ -168,10 +186,15 @@ infrastructure. Specifically, by design:
   protocol. It works well for the small, mostly-fully-connected LAN
   topologies this is meant for (star or mesh of a handful of machines);
   it is not battle-tested for large or adversarial networks.
-- **Shared secrets in `config.py`.** `MCA_SECRET_KEY` is the thing that
-  makes certificates un-forgeable. Treat it like a network password —
-  change the default before using this beyond your own experiments, and
-  keep it identical on the MCA and every node.
+- **Shared secrets in `config.py`.** As of this version, there is no
+  longer a shared signing secret to protect — an earlier design used one
+  symmetric HMAC secret copied onto every node, which meant a single
+  leaked node could let an attacker forge certificates for the whole
+  network. Certificates are now signed with the MCA's own ECDSA keypair;
+  only its public key (safe to share, cannot be used to forge anything)
+  is distributed to nodes. `MCA_ADMIN_KEY` is the one remaining secret in
+  `config.py`, and it's only needed by the MCA itself to gate the
+  validator-admission page — never distribute it to node operators.
 - **Development web server.** Flask's built-in server (used by both
   `mca_server.py` and `node_server.py`) is fine for a LAN demo; it is not
   hardened for the public internet.

@@ -32,13 +32,10 @@ CERT_VALIDITY_SECONDS = int(os.environ.get("CERT_VALIDITY_SECONDS", 300))
 # and mining rewards both appear to come "from" this address.
 NETWORK_ADDRESS = "NETWORK"
 
-# Shared secret the MCA uses to HMAC-sign every certificate it issues.
-# Every node verifies that signature locally (no network call needed) as
-# a first line of defense, then double-checks the certificate against the
-# MCA's live database before accepting a block. This MUST be the same
-# string on the MCA and on every node in your network - treat it like a
-# network password.
-MCA_SECRET_KEY = os.environ.get("MCA_SECRET_KEY", "change-this-shared-network-secret")
+# Separate admin credential used ONLY to manage the MCA's validator
+# whitelist (who is allowed to mine at all). Should never be distributed
+# to nodes - only the MCA reads it.
+MCA_ADMIN_KEY = os.environ.get("MCA_ADMIN_KEY", "change-this-mca-admin-key")
 
 # Default MCA location a fresh node will look for if MCA_URL isn't set.
-DEFAULT_MCA_URL = os.environ.get("MCA_URL", "http://localhost:6000")
+DEFAULT_MCA_URL = os.environ.get("MCA_URL", "http://localhost:6060")
