@@ -1,5 +1,17 @@
 # Permissioned Chain (Proof-of-Authority)
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.9%2B-blue?style=flat&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Flask-2.3%2B-black?style=flat&logo=flask&logoColor=white" alt="Flask">
+  <img src="https://img.shields.io/badge/Jinja2-Templating-B41717?style=flat&logo=jinja&logoColor=white" alt="Jinja2">
+  <img src="https://img.shields.io/badge/Werkzeug-Security-red?style=flat" alt="Werkzeug">
+  <img src="https://img.shields.io/badge/ecdsa-secp256k1-blueviolet?style=flat" alt="ecdsa">
+  <img src="https://img.shields.io/badge/requests-HTTP%2FP2P-green?style=flat&logo=python&logoColor=white" alt="requests">
+  <img src="https://img.shields.io/badge/Storage-JSON%20files-lightgrey?style=flat" alt="Storage">
+  <img src="https://img.shields.io/badge/HTML5%20%7C%20CSS3%20%7C%20JavaScript-Frontend-e34c26?style=flat&logo=html5&logoColor=white" alt="Frontend">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat" alt="License: MIT">
+</p>
+
 A small, self-contained **permissioned blockchain network** with a real web
 GUI, built with Python and Flask. It works on Linux and Windows (anywhere
 Python 3 runs) and is designed to be run across multiple machines on the
@@ -34,19 +46,19 @@ same LAN.
 There are two kinds of service in this project:
 
 ```
-                     ┌─────────────────────────┐
+                     ┌───────────────────────────┐
                      │  Validator Registry       │
                      │  ("MCA") - mca_server.py  │   <- one per network,
                      │  who may propose, in what │      must stay running
                      │  order                    │
-                     └───────────┬──────────────┘
+                     └───────────┬───────────────┘
                                  │  GET /validators (public, read-only)
                  ┌───────────────┼────────────────┐
                  │               │                │
-        ┌────────▼───────┐ ┌─────▼──────────┐ ┌───▼────────────┐
+        ┌────────▼────────┐ ┌────▼────────────┐ ┌─▼───────────────┐
         │ Node (machine A)│ │ Node (machine B)│ │ Node (machine C)│
         │ node_server.py  │ │ node_server.py  │ │ node_server.py  │
-        │ Wallet + Validator interface, web GUI, peer-to-peer sync │
+        │ Wallet+Validator│ │   Web GUI       │ │peer-to-peer sync│
         └─────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
