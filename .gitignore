@@ -1,0 +1,26 @@
+# Runtime data - every node's/MCA's local ledger, accounts, certificates,
+# validator whitelist, and (as of the ECDSA change) the MCA's own signing
+# keypair. All generated at runtime and machine-specific. Committing this
+# would leak private keys, password hashes, and the MCA's private key
+# into git history.
+data/*.json
+data/*.json.tmp
+
+# Python bytecode/cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editor/OS cruft
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# In case you ever set secrets via a local .env file instead of real env vars
+.env

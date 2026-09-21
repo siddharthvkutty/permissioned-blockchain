@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Validator{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <section class="card">
+    <h2>Block proposal rotation</h2>
+    <p class="muted">Under Proof-of-Authority, there's no race and nothing to solve - exactly one approved validator is eligible per block, in a fixed rotation managed at the registry (MCA, <code>{{ mca_url }}</code>). If whoever's turn it is goes offline, eligibility automatically falls through to the next validator after {{ slot_timeout|int }}s.</p>
+
+    <div class="cert-box {{ 'has-cert' if my_turn }}">
+      {% if not validators %}
+        <span class="badge badge-pending">No validators approved yet</span>
+        <p class="muted" style="margin:8px 0 0;">Ask your network administrator to approve at least one address on the registry's Validators page before anyone can propose blocks.</p>
+      {% elif my_turn %}
+        <span class="badge badge-ok">It's your turn</span>
+        <p class="muted" style="margin:8px 0 0;">
+          You're the eligible proposer for block #{{ next_index }}
+          {% if fallback_active %}(by fallback - <code>{{ primary[:16] }}...</code> was primary but didn't respond in time){% endif %}.
+        </p>
+      {% else %}
+        <span class="badge badge-pending">Not your turn</span>
+        <p class="muted" style="margin:8px 0 0;">
+          Block #{{ next_index }} is currently expected from <code>{{ expected[:20] if expected else '?' }}...</code>
+          {% if fallback_active %}(fallback from primary <code>{{ primary[:16] }}...</code>){% endif %}.
+        </p>
+        {% if not fallback_active %}
+        <p class="muted" id="countdown" style="margin:4px 0 0;" data-seconds="{{ seconds_left }}">
+          Falls through to the next validator in <span id="countdown-value">{{ seconds_left }}</span>s if they don't respond.
+        </p>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <button id="btn-propose" class="btn btn-success" {{ 'disabled' if not my_turn }}>Propose Block</button>
+    <div id="propose-status" class="mine-status"></div>
+    <pre id="propose-result" class="mine-result" style="display:none;"></pre>
+  </section>
+
+  <section class="card">
+    <h2>Network status</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-label">Chain tip</div><div class="stat-value">#{{ tip.index }}</div></div>
+      <div class="stat"><div class="stat-label">Validators</div><div class="stat-value">{{ validators|length }}</div></div>
+      <div class="stat"><div class="stat-label">Reward / block</div><div class="stat-value">{{ reward }}</div></div>
+    </div>
+    {% if validators %}
+    <p class="muted" style="margin-top:12px;">Rotation order:</p>
+    <ol style="margin:4px 0 0; padding-left:20px; font-size:13px; color:var(--muted);">
+      {% for v in validators %}
+        <li{{ ' style="color:var(--text);font-weight:600;"'|safe if v == account.address }}>
+          <code>{{ v[:16] }}...</code>{% if v == account.address %} (you){% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost" style="margin-top:16px;display:inline-block;">&larr; Back to Wallet</a>
+  </section>
+</div>
+
+<script src="{{ url_for('static', filename='validator.js') }}"></script>
+{% endblock %}

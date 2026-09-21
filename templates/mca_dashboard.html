@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Validator Registry (MCA)</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">&#9635; Validator Registry (MCA)</div>
+  <nav class="navlinks">
+    <a href="/" class="active">Dashboard</a>
+    <a href="/admin/validators">Validators</a>
+  </nav>
+</header>
+<main class="container">
+  <section class="card">
+    <h1>Registry - port {{ port }}</h1>
+    <p class="muted">Under Proof-of-Authority, this service's only job is to be the single authoritative record of which addresses may propose blocks, and in what order. It never sees or signs any block.</p>
+    <p class="muted"><b>{{ validators|length }}</b> validator(s) approved. Manage this on the <a href="/admin/validators">Validators</a> page.</p>
+  </section>
+
+  <section class="card">
+    <h2>Rotation order ({{ order|length }})</h2>
+    {% if not order %}
+      <p class="muted">No validators approved yet - nobody on the network can propose blocks.</p>
+    {% else %}
+    <table class="table">
+      <thead><tr><th>Position</th><th>Address</th><th>Label</th></tr></thead>
+      <tbody>
+      {% for addr in order %}
+        <tr>
+          <td>{{ loop.index0 }}</td>
+          <td><code>{{ addr }}</code></td>
+          <td>{{ validators[addr].label or '-' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  {% if upcoming %}
+  <section class="card">
+    <h2>Next few blocks' primary proposers</h2>
+    <p class="muted">This shows the base rotation schedule only. If a
+      validator is offline when their slot comes up, nodes automatically
+      fall through to the next validator after a timeout - that live
+      fallback state isn't tracked here since this registry never sees
+      blocks, only node-side state.</p>
+    <table class="table">
+      <thead><tr><th>Block #</th><th>Primary proposer</th></tr></thead>
+      <tbody>
+      {% for index, addr in upcoming %}
+        <tr><td>{{ index }}</td><td><code>{{ addr[:24] if addr else '-' }}...</code></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</main>
+</body>
+</html>

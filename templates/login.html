@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>Log in</h1>
+  <p class="muted">This network is permissioned - you must have an account to view or use the chain.</p>
+  <form method="post">
+    <label>Username
+      <input type="text" name="username" required autofocus>
+    </label>
+    <label>Password
+      <input type="password" name="password" required>
+    </label>
+    <button class="btn btn-primary" type="submit">Log in</button>
+  </form>
+  <p class="muted">New here? <a href="{{ url_for('signup') }}">Create a wallet</a></p>
+</div>
+{% endblock %}

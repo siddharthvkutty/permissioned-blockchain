@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Validator Admission - MCA</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">&#9635; Validator Registry (MCA)</div>
+  <nav class="navlinks">
+    <a href="/">Dashboard</a>
+    <a href="/admin/validators" class="active">Validators</a>
+  </nav>
+</header>
+<main class="container">
+  <section class="card">
+    <h1>Validator admission</h1>
+    <p class="muted">
+      Only addresses approved below may ever propose a block - and the ORDER they're approved in
+      is the rotation order every node uses to know whose turn it is. This list lives only here,
+      never inside node-replicated data, so no node operator can grant themselves proposal rights
+      by editing their own local files.
+    </p>
+    <p class="muted">To find someone's address, have them check their Wallet dashboard - it's shown right under their balance.</p>
+  </section>
+
+  {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="flash flash-success">{{ success }}</div>{% endif %}
+
+  <section class="card">
+    <h2>Approve or revoke a validator</h2>
+    <form method="post">
+      <label>Admin key
+        <input type="password" name="admin_key" required>
+      </label>
+      <label>Wallet address
+        <input type="text" name="address" placeholder="e.g. 4ee0b52a2d592567b3fabca0c6eca8a45c49ebb3" required>
+      </label>
+      <label>Label (optional, for your own reference)
+        <input type="text" name="label" placeholder="e.g. Alice's desktop">
+      </label>
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button class="btn btn-success" type="submit" name="action" value="add">Approve as validator</button>
+        <button class="btn btn-ghost" type="submit" name="action" value="remove">Revoke</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Currently authorized validators, in rotation order ({{ order|length }})</h2>
+    {% if not order %}
+      <p class="muted">No validators approved yet - nobody on the network can propose blocks until you approve at least one address above.</p>
+    {% else %}
+    <table class="table">
+      <thead><tr><th>Position</th><th>Address</th><th>Label</th></tr></thead>
+      <tbody>
+      {% for addr in order %}
+        <tr>
+          <td>{{ loop.index0 }}</td>
+          <td><code>{{ addr }}</code></td>
+          <td>{{ validators[addr].label or '-' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Peers{% endblock %}
+{% block content %}
+<h1>Network peers</h1>
+<p class="muted">Connect this node to other nodes on your LAN so accounts, transactions, and blocks propagate. This node's own address (give it to others): <code>{{ self_url }}</code></p>
+<p class="muted">Validator registry (MCA) in use: <code>{{ mca_url }}</code></p>
+
+<section class="card">
+  <h2>Add a peer</h2>
+  <form method="post">
+    <label>Peer URL <input type="text" name="peer_url" placeholder="http://192.168.1.42:5000" required></label>
+    <button class="btn btn-primary" type="submit">Connect</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Connected peers</h2>
+  {% if not peers %}
+    <p class="muted">No peers added yet - this node is running standalone.</p>
+  {% else %}
+    <ul class="peer-list">
+      {% for p in peers %}<li><code>{{ p }}</code></li>{% endfor %}
+    </ul>
+  {% endif %}
+</section>
+{% endblock %}
